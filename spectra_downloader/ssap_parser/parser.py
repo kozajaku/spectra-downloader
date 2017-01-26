@@ -11,7 +11,7 @@ class SsapVotableHandler(xml.sax.ContentHandler):
         self.result_fields = list()
         self.result_records = list()
         self.columns = list()
-        self.columnsData = ""
+        self.column_data = None
         self.query_status = "UNDEFINED"
         self.loading_next_resource = False
         self.loading_input_param_group = False
@@ -78,8 +78,13 @@ class SsapVotableHandler(xml.sax.ContentHandler):
 
     def characters(self, content):
         """This method is called whenever parser finds XML text node. Characters are passed together as content."""
-
-        pass
+        # only text that is expected in votable parsing is inside TD elements
+        if self.inside_td:
+            data = content.strip() # strip unnecessary whitespaces
+            if self.column_data is None:
+                self.column_data = data
+            else:
+                self.column_data += data
 
 
 def parseSSAP(self, votable):
