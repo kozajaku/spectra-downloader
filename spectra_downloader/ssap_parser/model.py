@@ -1,7 +1,12 @@
+# constant definition
+ACCREF_COLUMN_UTYPE = "ssa:access.reference"
+PUBDID_COLUMN_UTYPE = "ssa:curation.publisherdid"
+
+
 class Field:
     """Helping class for saving meta information about parsed columns"""
 
-    def __init(self, name, utype):
+    def __init__(self, name, utype):
         """Initialize Field class with name and utype."""
         self.name = name
         self.utype = utype
@@ -14,6 +19,14 @@ class PossibleDataLinkSpec:
     def __init__(self):
         self.input_params = list()
         self.external_params = dict()
+
+    @property
+    def access_url(self):
+        return self.external_params["accessURL"].value
+
+    @property
+    def proper_format(self):
+        return "accessURL" in self.external_params and len(self.input_params) > 0
 
 
 class Option:
@@ -45,3 +58,63 @@ class Record:
 
     def __init__(self, columns):
         self.columns = columns
+
+
+class IndexedSSAPVotable:
+    """This class represents a parsing result."""
+
+    def __init__(self, query_status, column_fields, rows):
+        """Initializes new object that serves as a response of SSAP votable parser. The object is initialized
+        with resulting query status, column fields and rows of the obligatory result RESOURCE tag. In case the
+        DataLink protocol is available, caller must also call method setup_datalink to properly setup information
+        required by this protocol."""
+        self.column_fields = column_fields
+        self.rows = rows
+        self.query_status = query_status
+        self.datalink_available = False
+        # find which column has ACCREF and which PUBDID (voluntary)
+        counter = 0
+        self._accref_index = None
+        self._pubdid_index = None
+        self.datalink_resource_url = None
+        self.datalink_input_params = None
+        for field in column_fields:
+            utype = field.utype.lower()
+            if utype == ACCREF_COLUMN_UTYPE:
+                self._accref_index = counter
+            elif utype == PUBDID_COLUMN_UTYPE:
+                self._pubdid_index = counter
+            counter += 1
+
+    def setup_datalink(self, resource_url, input_params):
+        """This method tries to setup datalink in the object instance. It checks that pubdid field is present in definition
+        and datalink specification input params contain this input field too."""
+        if self._pubdid_index is None:
+            # unable to set datalink when no pubdid column was found
+            return
+        success = False
+        for param in input_params:
+            if param.id_param:
+                success = True
+                break
+        if not success:
+            # unable to find para for pubdid specification - invalid datalink spec
+            return
+        self.datalink_available = True
+        self.datalink_resource_url = resource_url
+        self.datalink_input_params = input_params
+
+    def get_accref(self, row):
+        """Fetch ACCREF value from the passed row (instance of Record). If votable does not contain
+        ACCREF field, returns None."""
+        if self._accref_index is None:
+            return None
+        return row.columns[self._accref_index]
+
+    def get_pubdid(self, row):
+        """Fetch PUBDID value from the passed row (instance of Record). If votable does not contain
+        PUBDID field, returns None. This method always returns a non None value in case the instance attribute
+        datalink_available is set to True."""
+        if self._pubdid_index is None:
+            return None
+        return row.columns[self._pubdid_index]

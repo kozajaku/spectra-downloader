@@ -32,13 +32,13 @@ class SsapVotableHandler(xml.sax.ContentHandler):
         # check that we are in results RESOURCE tag
         if self.is_result_resource:
             # check for INFO tag with query status - other INFO tags are ignored
-            if name == "INFO" and attrs.get(name) == "QUERY_STATUS":
+            if name == "INFO" and attrs.get("name") == "QUERY_STATUS":
                 # found query status
                 self.query_status = attrs.get("value", "UNDEFINED")
             elif name == "FIELD":
                 # found FIELD tag - save this field as parsed meta info about column
                 name = attrs.get("name", "undefined")
-                utype = attrs["utype"]  # this argument is obligatory
+                utype = attrs.get("utype", "undefined")
                 self.result_fields.append(model.Field(name, utype))
             # PARAM tags are ignored
             elif name == "TR":
@@ -74,32 +74,92 @@ class SsapVotableHandler(xml.sax.ContentHandler):
 
     def endElement(self, name):
         """This method is called whenever parser finds a closing XML element."""
-        pass
+        # check for closing RESOURCE tag
+        if name == "RESOURCE":
+            if self.is_result_resource:
+                self.is_result_resource = False
+            else:
+                self.loading_next_resource = False
+                # if loading datalink resource and it has proper format - add to possible datalinks
+                if self.loading_datalink_spec is not None:
+                    if self.loading_datalink_spec.proper_format:
+                        self.possible_datalinks.append(self.loading_datalink_spec)
+                    # prepare for loading next possible datalink
+                    self.loading_datalink_spec = None
+        # check for end of column in resource element
+        if self.columns is not None and name == "TR":
+            self.result_records.append(model.Record(self.columns))
+            self.columns = None
+        # check for end of cell inside column
+        if self.inside_td and name == "TD":
+            self.inside_td = True
+            if self.column_data is not None:
+                self.columns.append(self.column_data.strip())  # throw out unnecessary whitespaces
+                self.column_data = None
+            else:
+                # no characters read - insert empty column
+                self.columns.append("")
+        # check for input param group
+        if self.loading_input_param_group and name == "GROUP":
+            self.loading_input_param_group = False
+        # check for PARAM element
+        if self.loading_next_resource and name == "PARAM":
+            if self.loading_input_param_group:
+                self.loading_datalink_spec.input_params.append(self.loading_param)
+            else:
+                self.loading_datalink_spec.external_params[self.loading_param.name] = self.loading_param
+            self.loading_param = None
 
     def characters(self, content):
         """This method is called whenever parser finds XML text node. Characters are passed together as content."""
         # only text that is expected in votable parsing is inside TD elements
         if self.inside_td:
-            data = content.strip() # strip unnecessary whitespaces
+            data = content
             if self.column_data is None:
                 self.column_data = data
             else:
                 self.column_data += data
 
 
-def parseSSAP(self, votable):
+def _build_result(handler):
+    """This function creates parsing result object (indexed votable) from the passed handler."""
+    votable = model.IndexedSSAPVotable(handler.query_status, handler.result_fields, handler.result_records)
+    # choose proper DataLink service, if any
+    best = None
+    for spec in handler.possible_datalinks:
+        if best is None:
+            best = spec
+            continue
+        if len(spec.input_params) > len(best.input_params):
+            best = spec  # higher probability to be DataLink specification
+    if best is None:
+        # return parsed result without DataLink specification
+        return votable
+    else:
+        # try to set DataLink into object (can still not succeed)
+        votable.setup_datalink(best.access_url, best.input_params)
+    return votable
+
+
+def parse_ssap(votable):
     # setup new handler object
     handler = SsapVotableHandler()
     # parse passed string argument
     xml.sax.parseString(votable, handler)
     # fetch results from handler
-    return handler.tds_count
+    return _build_result(handler)
 
 
-if __name__ == "__main__":
+def main():
     #  todo remove
     with open("/home/radiokoza/Plocha/ssap.xml", "r") as f:
         ssap = f.read()
-    parser = SsapParser()
-    res = parser.parse(ssap)
-    print(res)
+    res = parse_ssap(ssap)
+    print("status: {}".format(res.query_status))
+    print("datalink available? {}".format(res.datalink_available))
+    print("rows: {}".format(len(res.rows)))
+    print("datalink resource url: {}".format(res.datalink_resource_url))
+    print("datalink params")
+    for param in res.datalink_input_params:
+        print(" id={}, name={}, value={}, options={}".format(param.id_param, param.name, param.value, param.options))
+
