@@ -122,7 +122,13 @@ class SsapVotableHandler(xml.sax.ContentHandler):
 
 
 def _build_result(handler):
-    """This function creates parsing result object (indexed votable) from the passed handler."""
+    """
+    This function creates parsing result object (indexed votable) from the passed handler.
+    :param handler: Parser content handler that already went through the parsing process.
+    :return: Object representing indexed votable with necessary information for spectra downloading. Instance of
+    IndexedSSAPVotable.
+    """
+    """"""
     votable = model.IndexedSSAPVotable(handler.query_status, handler.result_fields, handler.result_records)
     # choose proper DataLink service, if any
     best = None
@@ -142,24 +148,15 @@ def _build_result(handler):
 
 
 def parse_ssap(votable):
+    """
+    This is a starting method of SSAP parsing. Method creates parser handler and parses passed String - the XML result
+    of SSAP query.
+    :param votable: String containing the XML result of SSAP query.
+    :return: Instance of IndexedSSAPVotable - votable parsed in a useful form.
+    """
     # setup new handler object
     handler = SsapVotableHandler()
     # parse passed string argument
     xml.sax.parseString(votable, handler)
     # fetch results from handler
     return _build_result(handler)
-
-
-def main():
-    #  todo remove
-    with open("/home/radiokoza/Plocha/ssap.xml", "r") as f:
-        ssap = f.read()
-    res = parse_ssap(ssap)
-    print("status: {}".format(res.query_status))
-    print("datalink available? {}".format(res.datalink_available))
-    print("rows: {}".format(len(res.rows)))
-    print("datalink resource url: {}".format(res.datalink_resource_url))
-    print("datalink params")
-    for param in res.datalink_input_params:
-        print(" id={}, name={}, value={}, options={}".format(param.id_param, param.name, param.value, param.options))
-

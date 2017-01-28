@@ -64,10 +64,15 @@ class IndexedSSAPVotable:
     """This class represents a parsing result."""
 
     def __init__(self, query_status, column_fields, rows):
-        """Initializes new object that serves as a response of SSAP votable parser. The object is initialized
+        """
+        Initializes new object that serves as a response of SSAP votable parser. The object is initialized
         with resulting query status, column fields and rows of the obligatory result RESOURCE tag. In case the
         DataLink protocol is available, caller must also call method setup_datalink to properly setup information
-        required by this protocol."""
+        required by this protocol.
+        :param query_status: String containing query status from the parsed votable.
+        :param column_fields: Specification for columns. List of Field instances.
+        :param rows: List of rows containing data itself.
+        """
         self.column_fields = column_fields
         self.rows = rows
         self.query_status = query_status
@@ -85,6 +90,14 @@ class IndexedSSAPVotable:
             elif utype == PUBDID_COLUMN_UTYPE:
                 self._pubdid_index = counter
             counter += 1
+
+    @property
+    def query_ok(self):
+        """
+        This property indicates query status in parsed VOTABLE is properly set to OK value.
+        :return: True if query status is OK
+        """
+        return self.query_status.upper() == "OK"
 
     def setup_datalink(self, resource_url, input_params):
         """This method tries to setup datalink in the object instance. It checks that pubdid field is present in definition
