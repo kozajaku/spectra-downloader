@@ -3,3 +3,6 @@ class DownloadException(Exception):
 
 class SaveException(Exception):
     pass
+
+class DataLinkUnavailableException(Exception):
+    pass

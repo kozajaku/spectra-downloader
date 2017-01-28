@@ -1,8 +1,20 @@
 from ..ssap_parser import parser
 import requests
 from concurrent.futures import ThreadPoolExecutor
-from .exceptions import DownloadException, SaveException
+from .exceptions import DownloadException, SaveException, DataLinkUnavailableException
 import os
+from urllib.parse import quote
+
+# known DataLink Content-Type mappings
+EXTENSIONS = {
+    "application/fits": "fits",
+    "image/fits": "fit",
+    "text/csv": "csv",
+    "application/x-votable+xml;serialization=tabledata": "vot",
+    "application/x-votable+xml": "vot",
+    "text/plain": "txt",
+    "application/xml": "xml"
+}
 
 
 class SpectraDownloader:
@@ -49,12 +61,6 @@ class SpectraDownloader:
         # try to parse content
         return cls(parser.parse_ssap(content))
 
-    def __init__(self, parsed_ssap):
-        if parsed_ssap is None:
-            raise ValueError("Passed indexed SSAP table is invalid")
-        self.parsed_ssap = parsed_ssap
-        self.last_download_results = list()
-
     @staticmethod
     def _file_name(link):
         """
@@ -65,6 +71,52 @@ class SpectraDownloader:
         # return the string after the final slash without http parameters
         no_params = link.split('?')[0]
         return no_params.split('/')[-1]
+
+    @staticmethod
+    def _file_name_without_extension(link):
+        return SpectraDownloader._file_name(link).split('.')[0]
+
+    def __init__(self, parsed_ssap):
+        if parsed_ssap is None:
+            raise ValueError("Passed indexed SSAP table is invalid")
+        self.parsed_ssap = parsed_ssap
+        self.last_download_results = list()
+
+    def _construct_datalink_url(self, spectrum, parameters):
+        """Constructs URL for DataLink downloading using passed spectrum and parameters."""
+        result = self.parsed_ssap.datalink_resource_url
+        prepend_amp = False
+        if not result[-1] == "?":
+            result += "?"
+        for key, val in parameters.items():
+            if key.lower() == "id":
+                # this must be replaced for PUBDID column
+                pubdid = self.parsed_ssap.get_pubdid(spectrum)
+                val = quote(pubdid, safe='')
+                id_set = True
+            else:
+                val = quote(val, safe='')
+            if prepend_amp:
+                result += "&"
+            else:
+                prepend_amp = True
+            result += "{}={}".format(key, val)
+        # set id
+        id_set = False
+        # find name of argument in SSAP definition
+        for param in self.parsed_ssap.datalink_input_params:
+            if param.id_param:
+                pubdid = self.parsed_ssap.get_pubdid(spectrum)
+                val = quote(pubdid, safe='')
+                if prepend_amp:
+                    result += "&"
+                result += "{}={}".format(param.name, val)
+                id_set = True
+                break
+        if not id_set:
+            # should not happen
+            raise DataLinkUnavailableException("Unable to find id parameter inside DataLink specification")
+        return result
 
     def _spectra_download(self, spectra, parameters, location, progress_callback=None, done_callback=None):
         """
@@ -85,13 +137,27 @@ class SpectraDownloader:
             results = list()
             session = requests.session()
             for spectrum in spectra:
-                # find out acc_ref link
-                url = self.parsed_ssap.get_accref(spectrum)
-                file_name = SpectraDownloader._file_name(url)
+                if parameters is None:
+                    # use ACC_REF
+                    # find out acc_ref link
+                    url = self.parsed_ssap.get_accref(spectrum)
+                    file_name = self._file_name(url)
+                else:
+                    # use DataLink
+                    url = self._construct_datalink_url(spectrum, parameters)
+                    file_name = self._file_name_without_extension(self.parsed_ssap.get_accref(spectrum))
                 try:
                     # invoke http get
                     r = session.get(url, stream=True, timeout=5)
                     if r.status_code == 200:
+                        # specify file_name if DataLink
+                        if parameters is not None:
+                            ctype = r.headers.get("content-type")
+                            if ctype is not None:
+                                ctype = ctype.split(";")[0]  # just to be sure to have only plain content type
+                                suffix = EXTENSIONS.get(ctype)
+                                if suffix is not None:
+                                    file_name += ".{}".format(suffix)
                         final_path = os.path.join(location, file_name)
                         if os.path.isfile(final_path):
                             raise SaveException("File {} already exists".format(final_path))
@@ -131,9 +197,13 @@ class SpectraDownloader:
         # create target directory if it does not exist already
         if not os.path.isdir(location):
             os.makedirs(location)
+        # check that DataLink is truly available if parameters are passed
+        if parameters is not None and not self.parsed_ssap.datalink_available:
+            raise DataLinkUnavailableException("DataLink parameters were passed however DataLink is not available")
+
         # setup executor
         executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(...)
+        future = executor.submit(async_download)
         future.add_done_callback(invoke_done_callback)
 
     def download_direct(self, spectra, location, progress_callback=None, done_callback=None):
