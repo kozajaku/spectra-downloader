@@ -59,7 +59,8 @@ class Param:
         self.id_param = True
 
     def __str__(self):
-        return "Param: id?={}, name={}, value={}, options={}".format(self.id_param, self.name, self.value, str(self.options))
+        return "Param: id?={}, name={}, value={}, options={}".format(self.id_param, self.name, self.value,
+                                                                     str(self.options))
 
 
 class Record:
@@ -70,6 +71,7 @@ class Record:
 
     def __str__(self):
         return str(list)
+
 
 class IndexedSSAPVotable:
     """This class represents a parsing result."""
@@ -142,3 +144,9 @@ class IndexedSSAPVotable:
         if self._pubdid_index is None:
             return None
         return row.columns[self._pubdid_index]
+
+    def get_refname(self, row):
+        """Creates name representation of given spectrum."""
+        accref = self.get_accref(row)
+        no_params = accref.split('?')[0]
+        return no_params.split('/')[-1]
