@@ -4,7 +4,7 @@ with open('README.rst') as f:
     long_description = ''.join(f.readlines())
 
 setup(
-    name='spectra-downloader',
+    name='spectra_downloader',
     version='0.1',
     description='Simple Python API for parsing SSAP query VOTABLEs and download spectra using '
                 'direct method or DataLink protocol.',
@@ -13,7 +13,7 @@ setup(
     author_email='kozajaku@fit.cvut.cz',
     keywords='astronomy,SSAP,DataLink,spectra,spectrum',
     license='MIT',
-    url='https://github.com/kozajaku/spectra-analyzer',# todo change after migration
+    url='https://github.com/kozajaku/spectra-downloader',
     packages=find_packages(),
     include_package_data=True,
     classifiers=[
