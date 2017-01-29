@@ -2,3 +2,5 @@
 __pycache__
 .eggs
 spectra_downloader.egg-info
+build
+dist
