@@ -36,7 +36,7 @@ class SpectraDownloader:
         """
         with open(file, "r") as f:
             content = f.read()
-        return parser.parse_ssap(content)
+        return cls(parser.parse_ssap(content))
 
     @classmethod
     def from_string(cls, string):
@@ -168,7 +168,7 @@ class SpectraDownloader:
                         invoke_progress_callback(file_name, None)
                     else:
                         # bad status code - raise exception
-                        raise DownloadException("Unexpected HTTP status code: {}".format(r.status_code))
+                        raise DownloadException("Unexpected HTTP status code {} for URL: {}".format(r.status_code, url))
                         # pass exception to progress callback
                 except Exception as ex:
                     success = False

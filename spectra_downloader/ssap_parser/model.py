@@ -36,6 +36,12 @@ class Option:
         self.name = name
         self.value = value
 
+    def __str__(self):
+        return "Option: name={}, value={}".format(self.name, self.value)
+
+    def __repr__(self):
+        return str(self)
+
 
 class Param:
     """Helping class containing information about parsed PARAM tag. This class can contain options."""
@@ -52,6 +58,9 @@ class Param:
     def set_id(self):
         self.id_param = True
 
+    def __str__(self):
+        return "Param: id?={}, name={}, value={}, options={}".format(self.id_param, self.name, self.value, str(self.options))
+
 
 class Record:
     """Model class for every single record (row) found in parsed votable."""
@@ -59,6 +68,8 @@ class Record:
     def __init__(self, columns):
         self.columns = columns
 
+    def __str__(self):
+        return str(list)
 
 class IndexedSSAPVotable:
     """This class represents a parsing result."""
