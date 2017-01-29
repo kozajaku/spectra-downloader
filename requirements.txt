@@ -1,1 +1,3 @@
-requests
+eventlet
+flask
+flask-socketio
