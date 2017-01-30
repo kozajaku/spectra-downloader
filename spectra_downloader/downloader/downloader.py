@@ -143,16 +143,16 @@ class SpectraDownloader:
             raise DataLinkUnavailableException("Unable to find id parameter inside DataLink specification")
         return result
 
-    def _spectra_download(self, spectra, parameters, location, progress_callback=None, done_callback=None):
+    def _spectra_download(self, spectra, parameters, location, progress_callback=None, done_callback=None, async=True):
         """
         Generic method for spectra downloading using either ACC_REF or DataLink protocol. If parameters are None
         direct download will be used. DataLink otherwise.
         See download_direct or download_datalink for more info.
         """
 
-        def async_download():
+        def process_download():
             """
-            This function should be called in separate thread. It goes through all passed spectra and it tries to
+            This function goes through all passed spectra and it tries to
             download them into specified target directory. If progress callback are defined appropriate function
             is invoked.
             :return: If all spectra are successfully downloaded the function returns True. If at least
@@ -229,14 +229,20 @@ class SpectraDownloader:
             raise DataLinkUnavailableException("DataLink parameters were passed however DataLink is not available")
 
         # setup executor
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(async_download)
-        future.add_done_callback(invoke_done_callback)
+        if async:
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(process_download)
+            future.add_done_callback(invoke_done_callback)
+        else:
+            success = process_download()
+            if done_callback is not None:
+                done_callback(success)
 
-    def download_direct(self, spectra, location, progress_callback=None, done_callback=None):
+    def download_direct(self, spectra, location, progress_callback=None, done_callback=None, async=True):
         """
-        Download selected spectra to the target location on filesystem. This method is non-blocking.
-        Downloading process takes a place in a separate thread.
+        Download selected spectra to the target location on filesystem. This method is implicitly non-blocking.
+        Downloading process takes a place in a separate thread. This behaviour can be changed by setting argument
+        async to False.
         :param spectra: Non-empty list of Record instances. Spectra to be downloaded.
         :param location: String definition of location directory on filesystem where the spectra should be
         downloaded to.
@@ -246,13 +252,16 @@ class SpectraDownloader:
         :param done_callback: Function callback argument that will be called when the downloading process was finished.
         The function must take one boolean argument. This argument will be set to True if all spectra have been
         downloaded successfully. False otherwise.
+        :param async: If True, the downloading process takes place in a separate thread. If False, method is blocking
+        and executed in a same thread as a caller.
         """
-        self._spectra_download(spectra, None, location, progress_callback, done_callback)
+        self._spectra_download(spectra, None, location, progress_callback, done_callback, async)
 
-    def download_datalink(self, spectra, parameters, location, progress_callback=None, done_callback=None):
+    def download_datalink(self, spectra, parameters, location, progress_callback=None, done_callback=None, async=True):
         """
-        Download selected spectra to the target directory on filesystem. This method is non-blocking.
-        Downloading process takes a place in a separate thread.
+        Download selected spectra to the target directory on filesystem. This method is implicitly non-blocking.
+        Downloading process takes a place in a separate thread. This behaviour can be changed by setting argument
+        async to False.
         :param spectra: Non-empty list of Record instances. Selected spectra to be downloaded.
         :param parameters: DataLink protocol parameters corresponding to the definition in SSAP definition. Note that
         despite id parameter can be specified here, this parameter will not be used and instead it will be dynamically
@@ -265,5 +274,7 @@ class SpectraDownloader:
         :param done_callback: Function callback argument that will be called when the downloading process was finished.
         The function must take oe boolean argument. This argument will be set to True if all spectra have been
         downloaded successfully. False otherwise.
+        :param async: If True, the downloading process takes place in a separate thread. If False, method is blocking
+        and executed in a same thread as a caller.
         """
-        self._spectra_download(spectra, parameters, location, progress_callback, done_callback)
+        self._spectra_download(spectra, parameters, location, progress_callback, done_callback, async)
