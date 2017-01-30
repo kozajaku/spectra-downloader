@@ -17,6 +17,31 @@ EXTENSIONS = {
 }
 
 
+class DownloadResult:
+    """
+    This class represents a result of downloading of a single spectrum. It contains information
+    about spectrum final name, download link, exception in case of download failure.
+    """
+
+    def __init__(self, name, url, exception=None):
+        """
+        Initializes instance by passed arguments.
+        :param name: Final expected name of spectrum on the filesystem.
+        :param url: URL address the download was initiated from.
+        :param exception: Exception that was thrown during spectrum download process.
+        The exception signalizes the download failed. If None is passed spectrum is considered
+        as successfully downloaded.
+        """
+        self.name = name
+        self.url = url
+        self.exception = exception
+
+    @property
+    def success(self):
+        """Property that signalizes download success."""
+        return self.exception is None
+
+
 class SpectraDownloader:
     """
     This class represents downloading utility for downloading spectra listed in SSAP query. It is possible to
@@ -134,7 +159,7 @@ class SpectraDownloader:
             one spectrum was downloaded with exception it returns False.
             """
             success = True  # flag signalizing success in all downloads
-            results = list()
+            download_results = list()
             session = requests.session()
             for spectrum in spectra:
                 if parameters is None:
@@ -164,26 +189,28 @@ class SpectraDownloader:
                         with open(final_path, "wb") as f:
                             for chunk in r.iter_content(1024):
                                 f.write(chunk)
-                        results.append((file_name, True, None))
-                        invoke_progress_callback(file_name, None)
+                        result = DownloadResult(file_name, url)
+                        download_results.append(result)
+                        invoke_progress_callback(result)
                     else:
                         # bad status code - raise exception
                         raise DownloadException("Unexpected HTTP status code {} for URL: {}".format(r.status_code, url))
                         # pass exception to progress callback
                 except Exception as ex:
                     success = False
-                    results.append((file_name, False, ex))
-                    invoke_progress_callback(file_name, ex)
-            self.last_download_results = results
+                    result = DownloadResult(file_name, url, ex)
+                    download_results.append(result)
+                    invoke_progress_callback(result)
+            self.last_download_results = download_results
             return success
 
-        def invoke_progress_callback(file_name, exception):
-            """Helper function for utilizing progress_callback (if any)."""
+        def invoke_progress_callback(result):
+            """
+            Helper function for utilizing progress_callback (if any).
+            :param result: Instance of DownloadResult representing the spectrum download result.
+            """
             if progress_callback is not None:
-                if exception is None:
-                    progress_callback(file_name, True, None)
-                else:
-                    progress_callback(file_name, False, exception)
+                progress_callback(result)
 
         def invoke_done_callback(fut):
             """Helper function for utilizing done_callback (if any)."""
@@ -214,9 +241,8 @@ class SpectraDownloader:
         :param location: String definition of location directory on filesystem where the spectra should be
         downloaded to.
         :param progress_callback: Function callback argument that will be called whenever downloading of ONE single
-        spectrum was finished (either with state OK or ERROR). Function must take 3 positional arguments - first is the
-        spectrum file name, second is boolean indicating downloading success, third is an exception that was thrown in
-        case of failure. Third argument is set to None if download was successful.
+        spectrum was finished (either with state OK or ERROR). Function must take 1 - instance of DownloadResult
+        class representing the result of spectrum download.
         :param done_callback: Function callback argument that will be called when the downloading process was finished.
         The function must take one boolean argument. This argument will be set to True if all spectra have been
         downloaded successfully. False otherwise.
@@ -234,9 +260,8 @@ class SpectraDownloader:
         :param location: String definition of location directory on filesystem where the spectra should be
         downloaded to.
         :param progress_callback: Function callback argument that will be called whenever downloading of ONE single
-        spectrum was finished (either with stage OK or ERROR). Function must take 3 positional arguments - first is the
-        spectrum file name, second is boolean indicating downloading success, third is an exception that was thrown
-        in case of failure. Third argument is set to None if download was successful.
+        spectrum was finished (either with stage OK or ERROR). Function must take 1 - instance of DownloadResult
+        class representing the result of spectrum download.
         :param done_callback: Function callback argument that will be called when the downloading process was finished.
         The function must take oe boolean argument. This argument will be set to True if all spectra have been
         downloaded successfully. False otherwise.
