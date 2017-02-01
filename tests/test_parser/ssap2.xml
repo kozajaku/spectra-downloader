@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<VOTABLE version="1.1" xmlns="http://www.ivoa.net/xml/VOTable/v1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ivoa.net/xml/VOTable/v1.1 http://vo.ari.uni-heidelberg.de/docs/schemata/VOTable-1.1.xsd"><RESOURCE type="results"><INFO name="QUERY_STATUS" value="ERROR">Field REQUEST: Missing or invalid value for REQUEST.</INFO></RESOURCE></VOTABLE>
