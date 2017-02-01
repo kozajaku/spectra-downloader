@@ -69,9 +69,6 @@ class Record:
     def __init__(self, columns):
         self.columns = columns
 
-    def __str__(self):
-        return str(list)
-
 
 class IndexedSSAPVotable:
     """This class represents a parsing result."""
