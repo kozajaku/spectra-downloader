@@ -5,3 +5,4 @@ spectra_downloader.egg-info
 build
 dist
 .cache
+_build

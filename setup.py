@@ -26,5 +26,5 @@ setup(
     ],
     install_requires=['requests'],
     setup_requires=['pytest-runner'],
-    tests_require=['pytest', 'flexmock', 'betamax'],
+    tests_require=['pytest'],
 )
