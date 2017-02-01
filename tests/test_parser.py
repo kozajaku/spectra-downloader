@@ -1,11 +1,11 @@
 import pytest
 import os
-from tests import test_model
+from tests import test_parser
 from spectra_downloader import parse_ssap
 
 
 def read_file(name):
-    file = os.path.join(os.path.dirname(test_model.__file__),
+    file = os.path.join(os.path.dirname(test_parser.__file__),
                         "test_parser", name)
     with open(file, "r") as f:
         content = f.read()
