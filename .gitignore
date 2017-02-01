@@ -4,3 +4,4 @@ __pycache__
 spectra_downloader.egg-info
 build
 dist
+.cache

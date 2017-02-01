@@ -18,7 +18,7 @@ setup(
     include_package_data=True,
     classifiers=[
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License'
+        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
