@@ -157,6 +157,9 @@ def parse_ssap(votable):
     # setup new handler object
     handler = SsapVotableHandler()
     # parse passed string argument
-    xml.sax.parseString(votable, handler)
+    byte_votable = votable
+    if type(votable) is str:
+        byte_votable = votable.encode()
+    xml.sax.parseString(byte_votable, handler)
     # fetch results from handler
     return _build_result(handler)
